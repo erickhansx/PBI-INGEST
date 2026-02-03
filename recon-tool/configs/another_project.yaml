@@ -2,27 +2,27 @@
 # Plantilla para configurar otro proyecto de reconciliación
 
 project:
-  name: "Another Project"
-  version: "1.0.0"
-  description: "Descripción del proyecto"
+  name: 'Another Project'
+  version: '1.0.0'
+  description: 'Descripción del proyecto'
 
 paths:
-  base_dir: "data/"
-  output_dir: "reports/"
+  base_dir: 'data/'
+  output_dir: 'reports/'
 
 sources:
   # Definir fuentes aquí
   main_fact_table:
-    path: "fact_table.csv"
-    type: "fact"
+    path: 'fact_table.csv'
+    type: 'fact'
     foreign_keys:
-      - field: "dimension_key"
-        references: "dim_table"
+      - field: 'dimension_key'
+        references: 'dim_table'
 
   dim_table:
-    path: "dim_table.csv"
-    type: "dimension"
-    primary_key: "dimension_key"
+    path: 'dim_table.csv'
+    type: 'dimension'
+    primary_key: 'dimension_key'
 
 validations:
   referential_integrity: []
@@ -33,5 +33,5 @@ validations:
 entity_comparisons: []
 
 reporting:
-  formats: ["markdown"]
-  detail_level: "summary"
+  formats: ['markdown']
+  detail_level: 'summary'

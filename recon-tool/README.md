@@ -5,6 +5,7 @@ Herramienta de reconciliación automática para validar datos de Power BI contra
 ## 📋 Descripción
 
 **Recon Tool** automatiza el proceso de validación y reconciliación de datos entre:
+
 - Archivos CSV fuente (SharePoint, exports, etc.)
 - Tablas de hechos y dimensiones de Power BI
 - Configuración del reporte PBI (Layout)
@@ -84,28 +85,28 @@ recon report --config configs/mvh.yaml --output reports/
 
 ```yaml
 project:
-  name: "MVH Broadband DIA"
-  version: "1.0"
+  name: 'MVH Broadband DIA'
+  version: '1.0'
 
 sources:
   fact_quotes:
-    path: "data/factQuotes.csv"
-    key: "Site_Location_Key"
-  
+    path: 'data/factQuotes.csv'
+    key: 'Site_Location_Key'
+
   dim_site:
-    path: "data/dimSite.csv"
-    key: "Site_Location_Key"
+    path: 'data/dimSite.csv'
+    key: 'Site_Location_Key'
 
   sharepoint_arch1:
-    path: "data/Broadband DIA_Archetype 1_sharepoint.csv"
-    key: "Site_Location_Key"
+    path: 'data/Broadband DIA_Archetype 1_sharepoint.csv'
+    key: 'Site_Location_Key'
 
 validations:
   referential_integrity:
     - source: fact_quotes
       target: dim_site
       key: Site_Location_Key
-  
+
   required_fields:
     fact_quotes:
       - Total MRC
@@ -113,7 +114,7 @@ validations:
       - Service_Type
 
   allowed_values:
-    Service_Type: ["DIA", "Broadband", "LTE", "CPE"]
+    Service_Type: ['DIA', 'Broadband', 'LTE', 'CPE']
 ```
 
 ## 🧪 Testing
