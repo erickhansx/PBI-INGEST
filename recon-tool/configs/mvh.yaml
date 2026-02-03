@@ -1,0 +1,212 @@
+# MVH Broadband DIA Project Configuration
+# Configuración para el proyecto de reconciliación de cotizaciones de Broadband y DIA
+
+project:
+  name: "MVH Broadband DIA Reconciliation"
+  version: "1.0.0"
+  description: "Validación de datos PBI contra fuentes SharePoint para proyecto MVH"
+
+# Rutas base (relativas al directorio de ejecución)
+paths:
+  base_dir: "data/"
+  output_dir: "reports/"
+  pbi_layout: "pbix_unpacked/Report/Layout"
+
+# Definición de fuentes de datos
+sources:
+  # Tablas de hechos
+  fact_quotes:
+    path: "factQuotes.csv"
+    type: "fact"
+    primary_key: null  # No tiene PK única
+    foreign_keys:
+      - field: "Site_Location_Key"
+        references: "dim_site"
+    required_fields:
+      - "Site ID"
+      - "Vendor"
+      - "Service_Type"
+      - "Total MRC"
+      - "Archtype"
+
+  fact_existing_costs:
+    path: "factExistingCosts.csv"
+    type: "fact"
+    primary_key: null
+    foreign_keys:
+      - field: "Site_Location_Key"
+        references: "dim_site"
+
+  fact_serviceability:
+    path: "factServiceability Matrix.csv"
+    type: "fact"
+    foreign_keys:
+      - field: "Site_Location_Key"
+        references: "dim_site"
+
+  # Tablas de dimensiones
+  dim_site:
+    path: "dimSite.csv"
+    type: "dimension"
+    primary_key: "Site_Location_Key"
+    required_fields:
+      - "Site ID"
+      - "Banner/BU"
+      - "City"
+      - "State"
+
+  dim_service_type:
+    path: "dimServiceType.csv"
+    type: "dimension"
+    primary_key: "Service_Type"
+
+  # Fuentes SharePoint (archivos source)
+  sharepoint_arch1:
+    path: "Broadband DIA_Archetype 1_sharepoint.csv"
+    type: "source"
+    primary_key: "Site_Location_Key"
+    archetype: "Type1"
+
+  sharepoint_arch2:
+    path: "Broadband DIA_Archetype 2_sharepoint.csv"
+    type: "source"
+    primary_key: "Site_Location_Key"
+    archetype: "Type2"
+
+# Reglas de validación
+validations:
+  # Integridad referencial
+  referential_integrity:
+    - name: "fact_quotes_to_dim_site"
+      source: "fact_quotes"
+      target: "dim_site"
+      source_key: "Site_Location_Key"
+      target_key: "Site_Location_Key"
+      severity: "warning"  # warning | error
+
+    - name: "fact_existing_costs_to_dim_site"
+      source: "fact_existing_costs"
+      target: "dim_site"
+      source_key: "Site_Location_Key"
+      target_key: "Site_Location_Key"
+      severity: "error"
+
+    - name: "service_type_validation"
+      source: "fact_quotes"
+      target: "dim_service_type"
+      source_key: "Service_Type"
+      target_key: "Service_Type"
+      severity: "warning"
+
+  # Validación de duplicados
+  duplicates:
+    - name: "dim_site_pk_unique"
+      source: "dim_site"
+      key: "Site_Location_Key"
+      severity: "error"
+
+    - name: "dim_service_type_pk_unique"
+      source: "dim_service_type"
+      key: "Service_Type"
+      severity: "error"
+
+  # Validación de valores nulos
+  null_checks:
+    - name: "fact_quotes_critical_nulls"
+      source: "fact_quotes"
+      fields:
+        - field: "Total MRC"
+          max_null_percent: 5
+        - field: "Vendor"
+          max_null_percent: 0
+        - field: "Service_Type"
+          max_null_percent: 0
+
+    - name: "dim_site_critical_nulls"
+      source: "dim_site"
+      fields:
+        - field: "Site_Location_Key"
+          max_null_percent: 0
+        - field: "Site ID"
+          max_null_percent: 0
+
+  # Validación de valores permitidos
+  allowed_values:
+    - name: "service_type_values"
+      source: "fact_quotes"
+      field: "Service_Type"
+      values: ["DIA", "Broadband", "LTE", "CPE"]
+      allow_others: false
+
+    - name: "archtype_values"
+      source: "fact_quotes"
+      field: "Archtype"
+      values: ["Type1", "Type2"]
+      allow_others: false
+
+    - name: "location_type_values"
+      source: "fact_quotes"
+      field: "Location Type"
+      values: ["Banfield", "VCA", "BluePearl"]
+      allow_others: false
+
+# Comparaciones entidad a entidad
+entity_comparisons:
+  - name: "sharepoint_vs_factquotes_arch1"
+    source: "sharepoint_arch1"
+    target: "fact_quotes"
+    filter:
+      target_field: "Archtype"
+      target_value: "Type1"
+    compare_fields:
+      - source_field: "Broadband Circuit MRC $/Month"
+        target_field: "Circuit MRC"
+        tolerance: 0.01
+      - source_field: "LTE MRC $/Month"
+        target_field: "LTE MRC"
+        tolerance: 0.01
+      - source_field: "CPE Recurring - Primary DIA"
+        target_field: "CPE Recurring"
+        tolerance: 0.01
+
+  - name: "sharepoint_vs_factquotes_arch2"
+    source: "sharepoint_arch2"
+    target: "fact_quotes"
+    filter:
+      target_field: "Archtype"
+      target_value: "Type2"
+    compare_fields:
+      - source_field: "Broadband Circuit MRC $/Month"
+        target_field: "Circuit MRC"
+        tolerance: 0.01
+
+# Configuración de reportes
+reporting:
+  formats:
+    - "markdown"
+    - "json"
+  
+  include_sections:
+    - "summary"
+    - "validations"
+    - "data_quality"
+    - "recommendations"
+  
+  detail_level: "full"  # summary | full | debug
+
+# Filtros para análisis específicos
+analysis_filters:
+  by_site:
+    enabled: true
+    parameter: "site_id"
+    field: "Site ID"
+  
+  by_vendor:
+    enabled: true
+    parameter: "vendor"
+    field: "Vendor"
+  
+  by_archetype:
+    enabled: true
+    parameter: "archetype"
+    field: "Archtype"

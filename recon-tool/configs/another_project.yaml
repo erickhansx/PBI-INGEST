@@ -1,0 +1,37 @@
+# Another Project Configuration Template
+# Plantilla para configurar otro proyecto de reconciliación
+
+project:
+  name: "Another Project"
+  version: "1.0.0"
+  description: "Descripción del proyecto"
+
+paths:
+  base_dir: "data/"
+  output_dir: "reports/"
+
+sources:
+  # Definir fuentes aquí
+  main_fact_table:
+    path: "fact_table.csv"
+    type: "fact"
+    foreign_keys:
+      - field: "dimension_key"
+        references: "dim_table"
+
+  dim_table:
+    path: "dim_table.csv"
+    type: "dimension"
+    primary_key: "dimension_key"
+
+validations:
+  referential_integrity: []
+  duplicates: []
+  null_checks: []
+  allowed_values: []
+
+entity_comparisons: []
+
+reporting:
+  formats: ["markdown"]
+  detail_level: "summary"
