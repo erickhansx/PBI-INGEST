@@ -1,212 +1,164 @@
 # MVH Broadband DIA Project Configuration
 # Configuración para el proyecto de reconciliación de cotizaciones de Broadband y DIA
+# 
+# DESIGN PRINCIPLES:
+# - MATCH: Datos coinciden exactamente (o dentro de tolerancia configurada)
+# - MISMATCH: Hay valor en ambos lados y NO coinciden
+# - MISSING_IN_PBI: Existe en source original, NO existe en modelo PBI
+# - MISSING_IN_SOURCE: Existe en modelo PBI, NO existe en source original
+# - NOT_VERIFIABLE: No hay datos suficientes para realizar la comparación
+# - RULE_NOT_DEFINED: No existe regla/mapeo configurado para ese campo
+#
+# NUNCA asumir. Si no hay regla → RULE_NOT_DEFINED. Si no hay datos → NOT_VERIFIABLE.
 
 project:
-  name: 'MVH Broadband DIA Reconciliation'
+  name: 'mvh'
   version: '1.0.0'
   description: 'Validación de datos PBI contra fuentes SharePoint para proyecto MVH'
 
-# Rutas base (relativas al directorio de ejecución)
+# Rutas base
 paths:
-  base_dir: 'data/'
-  output_dir: 'reports/'
-  pbi_layout: 'pbix_unpacked/Report/Layout'
+  sources_base: 'C:/Users/mak_m/Downloads/PBIX-RECONCILIATION'
+  pbi_model: 'C:/Users/mak_m/Downloads/PBIX-RECONCILIATION/pbix_unpacked'
+  reports_output: './reports'
+
+# Configuración global
+settings:
+  default_encoding: 'utf-8'
+  numeric_tolerance: 0.01  # $0.01 de tolerancia para comparaciones de precios
 
 # Definición de fuentes de datos
 sources:
-  # Tablas de hechos
+  # Tablas PBI Model
   fact_quotes:
     path: 'factQuotes.csv'
-    type: 'fact'
-    primary_key: null # No tiene PK única
-    foreign_keys:
-      - field: 'Site_Location_Key'
-        references: 'dim_site'
-    required_fields:
-      - 'Site ID'
-      - 'Vendor'
-      - 'Service_Type'
-      - 'Total MRC'
-      - 'Archtype'
+    type: 'csv'
+    encoding: 'utf-8'
+    delimiter: ','
+    key_columns: ['Site_Location_Key', 'Service_Type', 'Vendor']
 
-  fact_existing_costs:
-    path: 'factExistingCosts.csv'
-    type: 'fact'
-    primary_key: null
-    foreign_keys:
-      - field: 'Site_Location_Key'
-        references: 'dim_site'
-
-  fact_serviceability:
-    path: 'factServiceability Matrix.csv'
-    type: 'fact'
-    foreign_keys:
-      - field: 'Site_Location_Key'
-        references: 'dim_site'
-
-  # Tablas de dimensiones
   dim_site:
     path: 'dimSite.csv'
-    type: 'dimension'
-    primary_key: 'Site_Location_Key'
-    required_fields:
-      - 'Site ID'
-      - 'Banner/BU'
-      - 'City'
-      - 'State'
+    type: 'csv'
+    encoding: 'utf-8'
+    delimiter: ','
+    key_columns: ['Site_Location_Key']
 
   dim_service_type:
     path: 'dimServiceType.csv'
-    type: 'dimension'
-    primary_key: 'Service_Type'
+    type: 'csv'
+    encoding: 'utf-8'
+    delimiter: ','
+    key_columns: ['Service_Type']
 
-  # Fuentes SharePoint (archivos source)
+  fact_existing_costs:
+    path: 'factExistingCosts.csv'
+    type: 'csv'
+    encoding: 'utf-8'
+    delimiter: ','
+    key_columns: ['Site_Location_Key']
+
+  fact_serviceability:
+    path: 'factServiceability Matrix.csv'
+    type: 'csv'
+    encoding: 'utf-8'
+    delimiter: ','
+    key_columns: ['Site_Location_Key']
+
+  # Fuentes SharePoint (archivos source originales)
   sharepoint_arch1:
     path: 'Broadband DIA_Archetype 1_sharepoint.csv'
-    type: 'source'
-    primary_key: 'Site_Location_Key'
-    archetype: 'Type1'
+    type: 'csv'
+    encoding: 'utf-8'
+    delimiter: ','
+    key_columns: ['Site_Location_Key']
 
   sharepoint_arch2:
     path: 'Broadband DIA_Archetype 2_sharepoint.csv'
-    type: 'source'
-    primary_key: 'Site_Location_Key'
-    archetype: 'Type2'
+    type: 'csv'
+    encoding: 'utf-8'
+    delimiter: ','
+    key_columns: ['Site_Location_Key']
 
-# Reglas de validación
-validations:
-  # Integridad referencial
-  referential_integrity:
-    - name: 'fact_quotes_to_dim_site'
-      source: 'fact_quotes'
-      target: 'dim_site'
-      source_key: 'Site_Location_Key'
-      target_key: 'Site_Location_Key'
-      severity: 'warning' # warning | error
-
-    - name: 'fact_existing_costs_to_dim_site'
-      source: 'fact_existing_costs'
-      target: 'dim_site'
-      source_key: 'Site_Location_Key'
-      target_key: 'Site_Location_Key'
-      severity: 'error'
-
-    - name: 'service_type_validation'
-      source: 'fact_quotes'
-      target: 'dim_service_type'
-      source_key: 'Service_Type'
-      target_key: 'Service_Type'
-      severity: 'warning'
-
-  # Validación de duplicados
-  duplicates:
-    - name: 'dim_site_pk_unique'
-      source: 'dim_site'
-      key: 'Site_Location_Key'
-      severity: 'error'
-
-    - name: 'dim_service_type_pk_unique'
-      source: 'dim_service_type'
-      key: 'Service_Type'
-      severity: 'error'
-
-  # Validación de valores nulos
-  null_checks:
-    - name: 'fact_quotes_critical_nulls'
-      source: 'fact_quotes'
-      fields:
-        - field: 'Total MRC'
-          max_null_percent: 5
-        - field: 'Vendor'
-          max_null_percent: 0
-        - field: 'Service_Type'
-          max_null_percent: 0
-
-    - name: 'dim_site_critical_nulls'
-      source: 'dim_site'
-      fields:
-        - field: 'Site_Location_Key'
-          max_null_percent: 0
-        - field: 'Site ID'
-          max_null_percent: 0
-
-  # Validación de valores permitidos
-  allowed_values:
-    - name: 'service_type_values'
-      source: 'fact_quotes'
-      field: 'Service_Type'
-      values: ['DIA', 'Broadband', 'LTE', 'CPE']
-      allow_others: false
-
-    - name: 'archtype_values'
-      source: 'fact_quotes'
-      field: 'Archtype'
-      values: ['Type1', 'Type2']
-      allow_others: false
-
-    - name: 'location_type_values'
-      source: 'fact_quotes'
-      field: 'Location Type'
-      values: ['Banfield', 'VCA', 'BluePearl']
-      allow_others: false
-
-# Comparaciones entidad a entidad
-entity_comparisons:
-  - name: 'sharepoint_vs_factquotes_arch1'
-    source: 'sharepoint_arch1'
-    target: 'fact_quotes'
-    filter:
-      target_field: 'Archtype'
-      target_value: 'Type1'
-    compare_fields:
+# Reglas de validación por Service Type
+# Cada regla define qué campos comparar entre source y PBI
+validation_rules:
+  # Broadband: El MRC viene del campo "Broadband Circuit MRC $/Month" en SharePoint
+  Broadband:
+    source_name: 'sharepoint_arch1'  # O arch2, dependiendo del Archtype
+    source_filters:
+      # Opcional: filtros adicionales para el source
+    pbi_filters:
+      Service_Type: 'Broadband'
+    field_mappings:
       - source_field: 'Broadband Circuit MRC $/Month'
-        target_field: 'Circuit MRC'
+        pbi_field: 'Total MRC'
+        compare_type: 'numeric'
         tolerance: 0.01
-      - source_field: 'LTE MRC $/Month'
-        target_field: 'LTE MRC'
+      - source_field: 'Vendor'
+        pbi_field: 'Vendor'
+        compare_type: 'exact'
+
+  # DIA: Tiene campos específicos diferentes
+  # NOTA: Si user reporta $933.48 y no hay campo exacto → NOT_VERIFIABLE
+  DIA:
+    source_name: 'sharepoint_arch1'
+    source_filters: {}
+    pbi_filters:
+      Service_Type: 'DIA'
+    field_mappings:
+      - source_field: 'DIA Circuit MRC $/Month'
+        pbi_field: 'Total MRC'
+        compare_type: 'numeric'
         tolerance: 0.01
+      - source_field: 'Vendor'
+        pbi_field: 'Vendor'
+        compare_type: 'exact'
+
+  # CPE: RULE_NOT_DEFINED - no existe en dimServiceType
+  # Mantenemos la regla pero el validador marcará RULE_NOT_DEFINED si no hay datos
+  CPE:
+    source_name: 'sharepoint_arch1'
+    source_filters: {}
+    pbi_filters:
+      Service_Type: 'CPE'
+    field_mappings:
       - source_field: 'CPE Recurring - Primary DIA'
-        target_field: 'CPE Recurring'
+        pbi_field: 'Total MRC'
+        compare_type: 'numeric'
         tolerance: 0.01
 
-  - name: 'sharepoint_vs_factquotes_arch2'
-    source: 'sharepoint_arch2'
-    target: 'fact_quotes'
-    filter:
-      target_field: 'Archtype'
-      target_value: 'Type2'
-    compare_fields:
-      - source_field: 'Broadband Circuit MRC $/Month'
-        target_field: 'Circuit MRC'
+  # LTE: Similar a CPE
+  LTE:
+    source_name: 'sharepoint_arch1'
+    source_filters: {}
+    pbi_filters:
+      Service_Type: 'LTE'
+    field_mappings:
+      - source_field: 'LTE MRC $/Month'
+        pbi_field: 'Total MRC'
+        compare_type: 'numeric'
         tolerance: 0.01
 
-# Configuración de reportes
-reporting:
-  formats:
-    - 'markdown'
-    - 'json'
+# Verificaciones de integridad referencial
+integrity_checks:
+  - name: 'fact_quotes_to_dim_site'
+    source_table: 'fact_quotes'
+    target_table: 'dim_site'
+    source_key: 'Site_Location_Key'
+    target_key: 'Site_Location_Key'
+    severity: 'WARNING'
 
-  include_sections:
-    - 'summary'
-    - 'validations'
-    - 'data_quality'
-    - 'recommendations'
+  - name: 'fact_quotes_to_dim_service_type'
+    source_table: 'fact_quotes'
+    target_table: 'dim_service_type'
+    source_key: 'Service_Type'
+    target_key: 'Service_Type'
+    severity: 'WARNING'
 
-  detail_level: 'full' # summary | full | debug
-
-# Filtros para análisis específicos
-analysis_filters:
-  by_site:
-    enabled: true
-    parameter: 'site_id'
-    field: 'Site ID'
-
-  by_vendor:
-    enabled: true
-    parameter: 'vendor'
-    field: 'Vendor'
-
-  by_archetype:
-    enabled: true
-    parameter: 'archetype'
-    field: 'Archtype'
+  - name: 'fact_existing_costs_to_dim_site'
+    source_table: 'fact_existing_costs'
+    target_table: 'dim_site'
+    source_key: 'Site_Location_Key'
+    target_key: 'Site_Location_Key'
+    severity: 'ERROR'
